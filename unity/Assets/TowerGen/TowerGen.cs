@@ -14,7 +14,8 @@ public class TowerGen : MonoBehaviour
     public GameObject block;
 
     public List<GridSquare> grid;
-    public List<bool> connections;
+    public List<bool> verticalConnections;
+    public List<bool> horizontalConnections;
 
     public class GridSquare
     {
@@ -57,7 +58,15 @@ public class TowerGen : MonoBehaviour
             grid.Add (new GridSquare ());
         }
 
-        connections = new List<bool> ();
+        verticalConnections = new List<bool>();
+        for (int i = 0; i < (towerHeight - 1) * towerWidth; ++i) {
+            verticalConnections.Add(false);
+        }
+
+        horizontalConnections = new List<bool>();
+        for (int i = 0; i < (towerWidth - 1) * towerHeight; ++i) {
+            horizontalConnections.Add(false);
+        }
 
         for (int i = 0; i < towerWidth; ++i) {
             for (int j = 0; j < towerHeight; ++j) {
@@ -71,7 +80,7 @@ public class TowerGen : MonoBehaviour
                
                 float heightPercent = (float)j / (towerHeight - 1);
 
-                // ranges from 0.2 - 0.5
+                // reject according to perlin noise that is scaled with height
                 if (Mathf.PerlinNoise (x, y) < 0.15f * heightPercent + 0.25f
                     && (i != 0 || j != 0)) {
                     continue;
@@ -85,10 +94,27 @@ public class TowerGen : MonoBehaviour
         setConnected (grid, 0, 0);
 
         // build connections
-        for (int i = 0; i < towerWidth - 1; ++i) {
-            for (int j = 0; j < towerHeight - 1; ++j) {
+        for (int i = 0; i < towerWidth; ++i) {
+            for (int j = 0; j < towerHeight; ++j) {
                 GridSquare sq = GetSquare (i, j);
 
+                if (i < towerWidth - 1) {
+                    // horizontal connection
+                    GridSquare connection = GetSquare(i + 1, j);
+
+                    if (sq.filled && sq.connected && connection.filled && connection.connected) {
+                        horizontalConnections[i + j * (towerWidth - 1)] = true;
+                    }
+                }
+
+                if (j < towerHeight - 1) {
+                    // vertical connection
+                    GridSquare connection = GetSquare(i, j + 1);
+
+                    if (sq.filled && sq.connected && connection.filled && connection.connected) {
+                        verticalConnections[i * (towerHeight - 1) + j] = true;
+                    }
+                }
             }
         }
 
