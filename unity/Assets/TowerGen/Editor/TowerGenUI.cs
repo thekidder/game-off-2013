@@ -1,6 +1,6 @@
 using UnityEngine;
 using UnityEditor;
-using System.Collections;
+using System.Collections.Generic;
 
 [CustomEditor(typeof(TowerGen))]
 public class TowerGenUI : Editor
@@ -25,34 +25,29 @@ public class TowerGenUI : Editor
 
             Handles.color = Color.red;
 
-            float connectionLen = tower.blockHeight  / 4f;
+            float connectionLen = tower.blockHeight / 4f;
+            float z = tower.transform.position.z;
 
-            for (int i = 0; i < tower.towerWidth; ++i) {
-                for (int j = 0; j < tower.towerHeight - 1; ++j) {
-                    if (!tower.verticalConnections[i * (tower.towerHeight - 1) + j]) {
+            foreach (TowerGen.Room lhs in tower.rooms) {
+                HashSet<TowerGen.Room> processedRooms = new HashSet<TowerGen.Room> ();
+                foreach (TowerGen.Room rhs in lhs.connections) {
+                    if (processedRooms.Contains (rhs)) {
                         continue;
                     }
 
-                    float x = i * tower.blockWidth + tower.blockWidth / 2f + tower.transform.position.x;
-                    float y = (j + 1) * tower.blockHeight + tower.transform.position.y;
-                    float z = tower.transform.position.z;
+                    Vector2 hEdge = tower.SharedHorizontalEdge (lhs, rhs);
+                    Vector2 vEdge = tower.SharedVerticalEdge (lhs, rhs);
 
-                    Handles.DrawLine(new Vector3(x, y - connectionLen, z), new Vector3(x, y + connectionLen, z));
-                }
-            }
+                    float x = (hEdge.x + hEdge.y) / 2f;
+                    float y = (vEdge.x + vEdge.y) / 2f;
 
-            for (int i = 0; i < tower.towerWidth - 1; ++i) {
-                for (int j = 0; j < tower.towerHeight; ++j) {
-                    if (!tower.horizontalConnections[i + j * (tower.towerWidth - 1)]) {
-                        continue;
+                    if (Mathf.Approximately (hEdge.x, hEdge.y)) {
+                        Handles.DrawLine (new Vector3 (x - connectionLen, y, z), new Vector3 (x + connectionLen, y, z));
+                    } else {
+                        Handles.DrawLine (new Vector3 (x, y - connectionLen, z), new Vector3 (x, y + connectionLen, z));
                     }
-
-                    float x = (i + 1) * tower.blockWidth + tower.transform.position.x;
-                    float y = j * tower.blockHeight + tower.blockHeight / 2f + tower.transform.position.y;
-                    float z = tower.transform.position.z;
-
-                    Handles.DrawLine(new Vector3(x - connectionLen, y, z), new Vector3(x + connectionLen, y, z));
                 }
+                processedRooms.Add (lhs);
             }
         }
     }

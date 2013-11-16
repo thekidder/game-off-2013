@@ -10,24 +10,40 @@ public class TowerGen : MonoBehaviour
     public int towerHeight;
     public int towerWidth;
 
+    public int numRoomsMin;
+    public int minRemovedConnections;
+    public int numSpecialRooms;
+
     public Seed seed;
     public GameObject block;
 
     public List<GridSquare> grid;
-    public List<bool> verticalConnections;
-    public List<bool> horizontalConnections;
+    public List<Room> rooms;
 
     public class GridSquare
     {
-        public GridSquare ()
-        {
-            connected = false;
-            filled = false;
-        }
-
-        public bool connected;
-        public bool filled;
+        public bool filled = false;
+        public Room room = null;
     }
+
+    public class Room
+    {
+        public List<Room> connections = new List<Room> ();
+        public bool connected = false;
+
+        public int x;
+        public int y;
+        public int w;
+        public int h;
+    }
+
+    class RoomProbability
+    {
+        public int weight;
+        public int w;
+        public int h;
+    }
+
 
     // Use this for initialization
     void Start ()
@@ -58,16 +74,6 @@ public class TowerGen : MonoBehaviour
             grid.Add (new GridSquare ());
         }
 
-        verticalConnections = new List<bool>();
-        for (int i = 0; i < (towerHeight - 1) * towerWidth; ++i) {
-            verticalConnections.Add(false);
-        }
-
-        horizontalConnections = new List<bool>();
-        for (int i = 0; i < (towerWidth - 1) * towerHeight; ++i) {
-            horizontalConnections.Add(false);
-        }
-
         for (int i = 0; i < towerWidth; ++i) {
             for (int j = 0; j < towerHeight; ++j) {
                 float offsetX = Random.Range (-0.5f, 0.5f);
@@ -90,71 +96,211 @@ public class TowerGen : MonoBehaviour
             }
         }
 
-        // flood fill to ensure tower is connected
-        setConnected (grid, 0, 0);
+        // create rooms
+        List<RoomProbability> probs = new List<RoomProbability> ();
+        probs.Add (new RoomProbability { weight =  1, w = 3, h = 1 });
+        probs.Add (new RoomProbability { weight =  1, w = 1, h = 3 });
+        probs.Add (new RoomProbability { weight =  8, w = 2, h = 2 });
+        probs.Add (new RoomProbability { weight =  10, w = 1, h = 2 });
+        probs.Add (new RoomProbability { weight =  14, w = 2, h = 1 });
 
-        // build connections
-        for (int i = 0; i < towerWidth; ++i) {
-            for (int j = 0; j < towerHeight; ++j) {
-                GridSquare sq = GetSquare (i, j);
-
-                if (i < towerWidth - 1) {
-                    // horizontal connection
-                    GridSquare connection = GetSquare(i + 1, j);
-
-                    if (sq.filled && sq.connected && connection.filled && connection.connected) {
-                        horizontalConnections[i + j * (towerWidth - 1)] = true;
-                    }
-                }
-
-                if (j < towerHeight - 1) {
-                    // vertical connection
-                    GridSquare connection = GetSquare(i, j + 1);
-
-                    if (sq.filled && sq.connected && connection.filled && connection.connected) {
-                        verticalConnections[i * (towerHeight - 1) + j] = true;
-                    }
-                }
-            }
+        int sum = 0;
+        foreach (RoomProbability r in probs) {
+            sum += r.weight;
         }
 
-        for (int i = 0; i < towerWidth; ++i) {
-            for (int j = 0; j < towerHeight; ++j) {
-                GridSquare square = GetSquare (i, j);
-                if (!square.filled || !square.connected) {
+        numSpecialRooms = towerWidth * towerHeight / 6;
+
+        rooms = new List<Room> ();
+
+        for (int i = 0; i < numSpecialRooms; ++i) {
+            int choice = Random.Range (0, sum);
+
+            int total = 0;
+            RoomProbability spec = null;
+            foreach (RoomProbability r in probs) {
+                total += r.weight;
+
+                if (choice < total) {
+                    spec = r;
+                    break;
+                }
+            }
+
+            for (int j = 0; j < 5; ++j) { // attempts to place
+                int x = Random.Range (0, towerWidth - spec.w + 1);
+                int y = Random.Range (0, towerHeight - spec.h + 1);
+
+                bool valid = true;
+
+                for (int ii = 0; ii < spec.w; ++ii) {
+                    for (int jj = 0; jj < spec.h; ++jj) {
+                        GridSquare sq = GetSquare (x + ii, y + jj);
+
+                        if (sq == null) {
+                            valid = false;
+                            break;
+                        }
+
+                        if (!sq.filled || sq.room != null) {
+                            valid = false;
+                        }
+                    }
+                }
+                if (!valid) {
                     continue;
                 }
 
-                Vector3 pos = new Vector3 (i * blockWidth, j * blockHeight, 
-                                           this.gameObject.transform.position.z);
-                GameObject newBlock = (GameObject)Instantiate (block, pos, Quaternion.identity);
-                newBlock.transform.localScale = new Vector3 (blockWidth, blockHeight, 1f);
-                
-                newBlock.transform.parent = gameObject.transform;
+                Room r = new Room {w = spec.w, h = spec.h, x = x, y = y};
+                rooms.Add (r);
+
+                for (int ii = 0; ii < spec.w; ++ii) {
+                    for (int jj = 0; jj < spec.h; ++jj) {
+                        GridSquare sq = GetSquare (x + ii, y + jj);
+                        sq.room = r;
+                    }
+                }
+
+                break;
             }
+        }
+
+        // all 1x1 rooms
+        for (int i = 0; i < towerWidth; ++i) {
+            for (int j = 0; j < towerHeight; ++j) {
+                GridSquare sq = GetSquare (i, j);
+                if (sq.room == null && sq.filled) {
+                    sq.room = new Room { x = i, y = j, w = 1, h = 1};
+                    rooms.Add (sq.room);
+                }
+            }
+        }
+
+        // connect all rooms to all neighbors
+        foreach (Room r in rooms) {
+            r.connections = AdjacentRooms (r);
+        }
+
+        // flood fill to ensure connected
+        SetConnected (GetSquare (0, 0).room);
+        rooms.RemoveAll (item => !item.connected);
+
+        numRoomsMin = (int)Random.Range (rooms.Count * 0.5f, rooms.Count * 0.75f);
+        minRemovedConnections = Random.Range (rooms.Count / 3, rooms.Count / 2);
+
+        // flood fill to ensure tower is connected
+        for (int i = 0; i < minRemovedConnections && rooms.Count >= numRoomsMin;) {
+            Room r = rooms [Random.Range (0, rooms.Count)];
+
+            if (r.connections.Count == 0)
+                continue;
+
+            RemoveConnection (r, r.connections [Random.Range (0, r.connections.Count)]);
+
+            ResetConnected ();
+            SetConnected (GetSquare (0, 0).room);
+            ++i;
+
+            rooms.RemoveAll (item => !item.connected);
+        }
+
+
+        // display
+        foreach (Room r in rooms) {
+            Vector3 pos = new Vector3 (r.x * blockWidth, r.y * blockHeight, 0f) + gameObject.transform.position;
+            GameObject newBlock = (GameObject)Instantiate (block, pos, Quaternion.identity);
+            newBlock.transform.localScale = new Vector3 (blockWidth * r.w, blockHeight * r.h, 1f);
+
+            newBlock.transform.parent = gameObject.transform;
         }
     }
 
-    void setConnected (List<GridSquare> grid, int x, int y)
+    public Vector2 SharedHorizontalEdge (Room lhs, Room rhs)
     {
-        if (!InRange (x, y))
-            return;
-         
-        GridSquare sq = GetSquare (x, y);
+        float left = Mathf.Max (rhs.x * blockWidth, lhs.x * blockWidth) + gameObject.transform.position.x;
+        float right = Mathf.Min ((rhs.x + rhs.w) * blockWidth, (lhs.x + lhs.w) * blockWidth) + gameObject.transform.position.x;
 
-        if (sq.connected)
-            return;
+        return new Vector2 (left, right);
+    }
 
-        if (!sq.filled)
-            return;
+    public Vector2 SharedVerticalEdge (Room rhs, Room lhs)
+    {
+        float bottom = Mathf.Max (rhs.y * blockHeight, lhs.y * blockHeight) + gameObject.transform.position.y;
+        float top = Mathf.Min ((rhs.y + rhs.h) * blockHeight, (lhs.y + lhs.h) * blockHeight) + gameObject.transform.position.y;
 
+        return new Vector2 (bottom, top);
+    }
 
-        sq.connected = true;
+    List<Room> AdjacentRooms (Room r)
+    {
+        HashSet<Room> adjacentRooms = new HashSet<Room> ();
 
-        setConnected (grid, x - 1, y);
-        setConnected (grid, x + 1, y);
-        setConnected (grid, x, y - 1);
-        setConnected (grid, x, y + 1);
+        for (int i = 0; i < r.w; ++i) {
+            for (int j = 0; j < r.h; ++j) {
+                GridSquare left = GetSquare (i + r.x - 1, j + r.y);
+                if (left != null && left.room != null && left.room != r) {
+                    adjacentRooms.Add (left.room);
+                }
+
+                GridSquare right = GetSquare (i + r.x + 1, j + r.y);
+                if (right != null && right.room != null && right.room != r) {
+                    adjacentRooms.Add (right.room);
+                }
+
+                GridSquare up = GetSquare (i + r.x, j + r.y + 1);
+                if (up != null && up.room != null && up.room != r) {
+                    adjacentRooms.Add (up.room);
+                }
+
+                GridSquare down = GetSquare (i + r.x, j + r.y - 1);
+                if (down != null && down.room != null && down.room != r) {
+                    adjacentRooms.Add (down.room);
+                }
+            }
+        }
+
+        return new List<Room> (adjacentRooms);
+    }
+
+    void RemoveConnection (Room lhs, Room rhs)
+    {
+        lhs.connections.Remove (rhs);
+        rhs.connections.Remove (lhs);
+    }
+
+    void RemoveRoom (Room room)
+    {
+        foreach (Room r in rooms) {
+            if (r.connections.Contains (room)) {
+                r.connections.Remove (room);
+            }
+        }
+        for (int i = 0; i < towerWidth; ++i) {
+            for (int j = 0; j < towerHeight; ++j) {
+                GridSquare sq = GetSquare (i, j);
+                if (sq.room == room) {
+                    sq.room = null;
+                }
+            }
+        }
+        rooms.Remove (room);
+    }
+
+    void ResetConnected ()
+    {
+        foreach (Room r in rooms) {
+            r.connected = false;
+        }
+    }
+
+    void SetConnected (Room r)
+    {
+        r.connected = true;
+
+        foreach (Room adj in r.connections) {
+            if (!adj.connected)
+                SetConnected (adj);
+        }
     }
 
     bool InRange (int x, int y)
