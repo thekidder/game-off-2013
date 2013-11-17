@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Collections.Generic;
 
 [ExecuteInEditMode]
@@ -6,17 +6,16 @@ public class TowerGen : MonoBehaviour
 {
     public float blockWidth = 32f;
     public float blockHeight = 32f;
-
     public int towerHeight;
     public int towerWidth;
-
     public int numRoomsMin;
     public int minRemovedConnections;
     public int numSpecialRooms;
-
+    public int numDeadEnds;
+    public float connectedness;
+    public float sparseness;
     public Seed seed;
     public GameObject block;
-
     public List<GridSquare> grid;
     public List<Room> rooms;
 
@@ -30,11 +29,12 @@ public class TowerGen : MonoBehaviour
     {
         public List<Room> connections = new List<Room> ();
         public bool connected = false;
-
         public int x;
         public int y;
         public int w;
         public int h;
+        public bool deadEnd = false;
+        public int toEnd = -1;
     }
 
     class RoomProbability
@@ -66,8 +66,11 @@ public class TowerGen : MonoBehaviour
 
         Random.seed = seed.seed;
 
-        towerWidth = Random.Range (4, 7);
-        towerHeight = Random.Range (9, 16);
+        connectedness = 0f;
+        sparseness = 0f;
+
+        towerWidth = Random.Range (8, 12);
+        towerHeight = Random.Range (14, 22);
 
         grid = new List<GridSquare> (towerWidth * towerHeight);
         for (int i = 0; i < towerWidth * towerHeight; ++i) {
@@ -182,37 +185,141 @@ public class TowerGen : MonoBehaviour
         }
 
         // flood fill to ensure connected
-        SetConnected (GetSquare (0, 0).room);
-        rooms.RemoveAll (item => !item.connected);
+        FloodFill ();
+        RemoveAllUnconnected ();
 
-        numRoomsMin = (int)Random.Range (rooms.Count * 0.5f, rooms.Count * 0.75f);
-        minRemovedConnections = Random.Range (rooms.Count / 3, rooms.Count / 2);
+        numRoomsMin = (int)Random.Range (rooms.Count * 0.5f, rooms.Count * 0.6f);
+        float maxConnectedness = Random.Range (0.45f, 0.55f);
 
-        // flood fill to ensure tower is connected
-        for (int i = 0; i < minRemovedConnections && rooms.Count >= numRoomsMin;) {
+        //Debug.Log ("Rooms before removing connections: " + rooms.Count);
+
+        int maxIterations = rooms.Count * 8;
+        connectedness = 1f;
+        for (int i =0; connectedness > maxConnectedness && i < maxIterations; ++i) {
             Room r = rooms [Random.Range (0, rooms.Count)];
 
             if (r.connections.Count == 0)
                 continue;
 
-            RemoveConnection (r, r.connections [Random.Range (0, r.connections.Count)]);
+            Room o = r.connections [Random.Range (0, r.connections.Count)];
+            RemoveConnection (r, o);
 
-            ResetConnected ();
-            SetConnected (GetSquare (0, 0).room);
-            ++i;
+            int numRooms = FloodFill ();
 
-            rooms.RemoveAll (item => !item.connected);
+            //Debug.Log ("Now have " + numRooms + " rooms");
+
+            if (numRooms < numRoomsMin) {
+                AddConnection (r, o);
+                FloodFill ();
+            }
+
+            RemoveAllUnconnected ();
+            connectedness = Connectedness ();
         }
 
+        numDeadEnds = DeadEnds ();
 
-        // display
+        int maxDeadEnds = (int)(rooms.Count * 0.15f);
+
+        for (int i = 0; i < maxIterations && numDeadEnds > maxDeadEnds; ++i) {
+            rooms.Shuffle ();
+            foreach (Room r in rooms) {
+                if (r.connections.Count == 1) {
+                    List<Room> potential = AdjacentRooms (r);
+
+                    if (potential.Count == 1)
+                        continue;
+
+                    potential.Shuffle ();
+
+                    foreach (Room c in potential) {
+                        if (c != r.connections [0]) {
+                            AddConnection (c, r);
+                            numDeadEnds = DeadEnds ();
+                            break;
+                        }
+                    }
+
+                    break;
+                }
+            }
+        }
+
+        connectedness = Connectedness ();
+
+        sparseness = Sparseness ();
+    }
+
+    void ResetDeadEnds ()
+    {
         foreach (Room r in rooms) {
-            Vector3 pos = new Vector3 (r.x * blockWidth, r.y * blockHeight, 0f) + gameObject.transform.position;
-            GameObject newBlock = (GameObject)Instantiate (block, pos, Quaternion.identity);
-            newBlock.transform.localScale = new Vector3 (blockWidth * r.w, blockHeight * r.h, 1f);
-
-            newBlock.transform.parent = gameObject.transform;
+            r.deadEnd = false;
+            r.toEnd = -1;
         }
+    }
+
+    int DeadEnds ()
+    {
+        ResetDeadEnds ();
+
+        int n = 0;
+        
+        // do some end end connections
+        foreach (Room r in rooms) {
+            if (r.connections.Count == 1 && (r.x != 0 || r.y != 0)) {
+                ++n;
+                WalkDeadEnd (r, r, 0);
+            }
+        }
+        return n;
+    }
+
+    void WalkDeadEnd (Room r, Room prev, int currentCount)
+    {
+        if (r.connections.Count > 2 || (r.x == 0 && r.y == 0)) {
+            return;
+        }
+
+        r.deadEnd = true;
+        r.toEnd = currentCount;
+
+        foreach (Room next in r.connections) {
+            if (next == prev) {
+                continue;
+            }
+
+            WalkDeadEnd (next, r, currentCount + 1);
+        }
+    }
+    
+    float Sparseness ()
+    {
+        int w = 0, h = 0, filled = 0;
+        for (int i = 0; i < towerWidth; ++i) {
+            for (int j = 0; j < towerHeight; ++j) {
+                if (GetSquare (i, j).room != null) {
+                    if (i > w) {
+                        w = i;
+                    }
+                    if (j > h) {
+                        h = j;
+                    }
+                    filled++;
+                }
+            }
+        }
+        
+        return (float)filled / ((w + 1) * (h + 1));
+    }
+
+    float Connectedness ()
+    {
+        float c = 0f;
+        foreach (Room r in rooms) {
+            c += (float)r.connections.Count / AdjacentRooms (r).Count;
+        }
+        c /= rooms.Count;
+        return c;
     }
 
     public Vector2 SharedHorizontalEdge (Room lhs, Room rhs)
@@ -262,6 +369,23 @@ public class TowerGen : MonoBehaviour
         return new List<Room> (adjacentRooms);
     }
 
+    void RemoveAllUnconnected ()
+    {
+        for (int i = rooms.Count - 1; i >= 0; --i) {
+            Room r = rooms [i];
+            if (!r.connected) {
+                rooms.RemoveAt (i);
+                RemoveRoom (r);
+            }
+        }
+    }
+
+    void AddConnection (Room lhs, Room rhs)
+    {
+        lhs.connections.Add (rhs);
+        rhs.connections.Add (lhs);
+    }
+
     void RemoveConnection (Room lhs, Room rhs)
     {
         lhs.connections.Remove (rhs);
@@ -283,7 +407,6 @@ public class TowerGen : MonoBehaviour
                 }
             }
         }
-        rooms.Remove (room);
     }
 
     void ResetConnected ()
@@ -293,14 +416,21 @@ public class TowerGen : MonoBehaviour
         }
     }
 
-    void SetConnected (Room r)
+    int FloodFill ()
+    {
+        ResetConnected ();
+        return SetConnected (GetSquare (0, 0).room, 1);
+    }
+
+    int SetConnected (Room r, int num)
     {
         r.connected = true;
 
         foreach (Room adj in r.connections) {
             if (!adj.connected)
-                SetConnected (adj);
+                num = SetConnected (adj, num + 1);
         }
+        return num;
     }
 
     bool InRange (int x, int y)
