@@ -245,17 +245,17 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   blockWidth: 32
   blockHeight: 32
-  towerHeight: 19
+  towerHeight: 16
   towerWidth: 11
-  numRoomsMin: 71
+  numRoomsMin: 55
   minRemovedConnections: 20
-  numSpecialRooms: 34
-  numDeadEnds: 10
-  connectedness: .715778053
-  sparseness: .577777803
+  numSpecialRooms: 29
+  numDeadEnds: 8
+  connectedness: .72757566
+  sparseness: .538961053
   seed:
-    seed: 1592194714
-    oldSeed: 1592194714
+    seed: 946870433
+    oldSeed: 946870433
   block: {fileID: 100000, guid: fe591d8c4de724d61a9b0e4427bedf03, type: 2}
 --- !u!4 &1247412881
 Transform:
@@ -360,9 +360,9 @@ Rigidbody2D:
   m_GravityScale: 1
   m_FixedAngle: 0
   m_IsKinematic: 0
-  m_Interpolate: 0
+  m_Interpolate: 1
   m_SleepingMode: 1
-  m_CollisionDetection: 0
+  m_CollisionDetection: 1
 --- !u!4 &1821076689
 Transform:
   m_ObjectHideFlags: 0
