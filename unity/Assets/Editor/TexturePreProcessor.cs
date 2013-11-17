@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEditor;
 
 public class TexturePreProcessor : AssetPostprocessor
@@ -11,7 +11,7 @@ public class TexturePreProcessor : AssetPostprocessor
             importer.textureType = TextureImporterType.Sprite;
             importer.npotScale = TextureImporterNPOTScale.None;
             importer.mipmapEnabled = false;
-            importer.spritePixelsToUnits = 1;
+            importer.spritePixelsToUnits = 8;
             importer.filterMode = FilterMode.Point;
         }    
     }
