@@ -1,12 +1,16 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Collections;
 
 public class PlayerController : MonoBehaviour
 {
+    public float jumpForce;
     public float moveForce;
     public float maxVelocity;
+    
+    public Transform groundCheck;
 
-    private GameObject body;
+    private bool grounded;
+    private bool jump;
 
     // Use this for initialization
     void Start ()
@@ -16,20 +20,28 @@ public class PlayerController : MonoBehaviour
     // Update is called once per frame
     void Update ()
     {
-		
+        grounded = Physics2D.Linecast(transform.position, groundCheck.position, 1 << LayerMask.NameToLayer("Ground"));
+
+        if (Input.GetButtonDown("Jump") && grounded) {
+            jump = true;
+        }
     }
 
     void FixedUpdate ()
     {
-        Rigidbody2D rigidBody = GetComponent<Rigidbody2D> ();
 
         float h = Input.GetAxis ("Horizontal");
-        if (h * rigidBody.velocity.x < maxVelocity) {
-            rigidBody.AddForce (h * moveForce * Vector2.right);
+
+        Animator animator = gameObject.GetComponent<Animator> ();
+        animator.SetFloat("Velocity", h);
+
+        if (h * rigidbody2D.velocity.x < maxVelocity) {
+            rigidbody2D.AddForce (h * moveForce * Vector2.right);
         }
 
-        if (rigidBody.velocity.x > 0.1) {
-            Animator animator = gameObject.GetComponent<Animator> ();
+        if (jump) {
+            rigidbody2D.AddForce(Vector2.up * jumpForce);
+            jump = false;
         }
     }
 }

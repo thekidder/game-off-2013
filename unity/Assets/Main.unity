@@ -134,7 +134,7 @@ Camera:
   far clip plane: 1000
   field of view: 60
   orthographic: 1
-  orthographic size: 180
+  orthographic size: 8
   m_Depth: -1
   m_CullingMask:
     serializedVersion: 2
@@ -150,7 +150,7 @@ Transform:
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 556995721}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 256, y: 128, z: -10}
+  m_LocalPosition: {x: 2, y: 3, z: -10}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
@@ -163,9 +163,9 @@ GameObject:
   m_Component:
   - 4: {fileID: 1184855868}
   - 212: {fileID: 1184855870}
-  - 95: {fileID: 1184855869}
+  - 61: {fileID: 1184855869}
   m_Layer: 0
-  m_Name: walk_animation_0
+  m_Name: body
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -182,20 +182,17 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 1821076689}
---- !u!95 &1184855869
-Animator:
-  serializedVersion: 2
+--- !u!61 &1184855869
+BoxCollider2D:
   m_ObjectHideFlags: 0
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 1184855867}
   m_Enabled: 1
-  m_Avatar: {fileID: 0}
-  m_Controller: {fileID: 9100000, guid: 05b81c3f8f4ea494d9dca480034ea106, type: 2}
-  m_CullingMode: 0
-  m_ApplyRootMotion: 1
-  m_AnimatePhysics: 0
-  m_HasTransformHierarchy: 1
+  m_Material: {fileID: 0}
+  m_IsTrigger: 0
+  m_Size: {x: 1, y: 2}
+  m_Center: {x: -.125, y: 1}
 --- !u!212 &1184855870
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -248,17 +245,17 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   blockWidth: 32
   blockHeight: 32
-  towerHeight: 15
+  towerHeight: 19
   towerWidth: 11
-  numRoomsMin: 46
+  numRoomsMin: 71
   minRemovedConnections: 20
-  numSpecialRooms: 27
-  numDeadEnds: 6
-  connectedness: .809782624
-  sparseness: .435064942
+  numSpecialRooms: 34
+  numDeadEnds: 10
+  connectedness: .715778053
+  sparseness: .577777803
   seed:
-    seed: 330008748
-    oldSeed: 330008748
+    seed: 1592194714
+    oldSeed: 1592194714
   block: {fileID: 100000, guid: fe591d8c4de724d61a9b0e4427bedf03, type: 2}
 --- !u!4 &1247412881
 Transform:
@@ -281,7 +278,7 @@ GameObject:
   - 4: {fileID: 1380637672}
   - 212: {fileID: 1380637671}
   - 61: {fileID: 1380637670}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: GroundPlane
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -297,8 +294,8 @@ BoxCollider2D:
   m_Enabled: 1
   m_Material: {fileID: 0}
   m_IsTrigger: 0
-  m_Size: {x: 128, y: 32}
-  m_Center: {x: 64, y: -16}
+  m_Size: {x: 16, y: 4}
+  m_Center: {x: 0, y: -2}
 --- !u!212 &1380637671
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -329,7 +326,7 @@ Transform:
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 1380637669}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -128, y: 0, z: 0}
+  m_LocalPosition: {x: 24, y: 0, z: 0}
   m_LocalScale: {x: 4, y: 4, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
@@ -341,6 +338,9 @@ GameObject:
   serializedVersion: 4
   m_Component:
   - 4: {fileID: 1821076689}
+  - 114: {fileID: 1821076690}
+  - 95: {fileID: 1821076692}
+  - 50: {fileID: 1821076688}
   m_Layer: 0
   m_Name: PlayerCharacter
   m_TagString: Untagged
@@ -348,6 +348,21 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
+--- !u!50 &1821076688
+Rigidbody2D:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 1821076687}
+  m_Mass: 1
+  m_LinearDrag: 0
+  m_AngularDrag: .0500000007
+  m_GravityScale: 1
+  m_FixedAngle: 0
+  m_IsKinematic: 0
+  m_Interpolate: 0
+  m_SleepingMode: 1
+  m_CollisionDetection: 0
 --- !u!4 &1821076689
 Transform:
   m_ObjectHideFlags: 0
@@ -355,8 +370,64 @@ Transform:
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 1821076687}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: -4, y: 1, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children:
   - {fileID: 1184855868}
+  - {fileID: 1940599070}
   m_Father: {fileID: 0}
+--- !u!114 &1821076690
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 1821076687}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d06dbc80e3efd48fa87c018f327bbb93, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  jumpForce: 500
+  moveForce: 150
+  maxVelocity: 10
+  groundCheck: {fileID: 1940599070}
+--- !u!95 &1821076692
+Animator:
+  serializedVersion: 2
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 1821076687}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 9100000, guid: 05b81c3f8f4ea494d9dca480034ea106, type: 2}
+  m_CullingMode: 0
+  m_ApplyRootMotion: 0
+  m_AnimatePhysics: 0
+  m_HasTransformHierarchy: 1
+--- !u!1 &1940599069
+GameObject:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  serializedVersion: 4
+  m_Component:
+  - 4: {fileID: 1940599070}
+  m_Layer: 0
+  m_Name: grounded
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1940599070
+Transform:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 1940599069}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: .125, y: -.125, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 1821076689}
