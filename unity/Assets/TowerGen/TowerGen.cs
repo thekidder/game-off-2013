@@ -44,6 +44,11 @@ public class TowerGen : MonoBehaviour
         public int h;
     }
 
+    void Awake ()
+    {
+        seed.oldSeed = 0;
+    }
+
 
     // Use this for initialization
     void Start ()

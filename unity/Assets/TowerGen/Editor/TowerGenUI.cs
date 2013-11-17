@@ -36,14 +36,18 @@ public class TowerGenUI : Editor
 
         TowerGen tower = (TowerGen)target;
 
-        EditorGUILayout.IntField ("Number of Rooms", tower.rooms.Count);
+        if (tower != null) {
+            EditorGUILayout.IntField ("Number of Rooms", tower.rooms.Count);
+        }
     }
 
     public void OnSceneGUI ()
     {
+        serializedObject.Update ();
+
         TowerGen tower = (TowerGen)target;
 
-        if (tower) {
+        if (tower != null) {
             Vector3 bl = tower.transform.position;
             Vector3 br = new Vector3 (bl.x + tower.towerWidth * tower.blockWidth, bl.y, bl.z);
             Vector3 tl = new Vector3 (bl.x, bl.y + tower.towerHeight * tower.blockHeight, bl.z);
