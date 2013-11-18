@@ -4,6 +4,8 @@ using System.Collections.Generic;
 [ExecuteInEditMode]
 public class TowerGen : MonoBehaviour
 {
+    public GameObject roomGen;
+
     public float blockWidth = 32f;
     public float blockHeight = 32f;
     public int towerHeight;
@@ -253,6 +255,32 @@ public class TowerGen : MonoBehaviour
         connectedness = Connectedness ();
 
         sparseness = Sparseness ();
+
+        BuildRooms ();
+    }
+
+    void BuildRooms ()
+    {
+        foreach(Room r in rooms) {
+            /*GameObject go = new GameObject();
+            go.transform.localPosition = new Vector3(r.x * blockWidth, r.y * blockHeight, 0);
+            go.transform.parent = gameObject.transform;
+
+            go.name = "Room at (" + r.x + ", " + r.y + ")";
+
+            go.AddComponent<RoomGen>();
+            go.GetComponent<RoomGen>().room = r;
+
+            go.GetComponent<RoomGen>().Generate();*/
+            GameObject room = Instantiate(roomGen) as GameObject;
+            room.transform.localPosition = new Vector3(r.x * blockWidth, r.y * blockHeight, 0);
+            room.transform.parent = gameObject.transform;
+            
+            room.name = "Room at (" + r.x + ", " + r.y + ")";
+
+            room.GetComponent<RoomGen>().room = r;
+            room.GetComponent<RoomGen>().Generate();
+        }
     }
 
     void ResetDeadEnds ()
