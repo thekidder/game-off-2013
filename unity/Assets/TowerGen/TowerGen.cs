@@ -6,8 +6,8 @@ public class TowerGen : MonoBehaviour
 {
     public GameObject roomGen;
 
-    public float blockWidth = 32f;
-    public float blockHeight = 32f;
+    public Params towerParams;
+
     public int towerHeight;
     public int towerWidth;
     public int numRoomsMin;
@@ -18,18 +18,20 @@ public class TowerGen : MonoBehaviour
     public float sparseness;
     public Seed seed;
     public GameObject block;
-    public List<GridSquare> grid;
     public List<Room> rooms;
 
-    public class GridSquare
-    {
-        public bool filled = false;
-        public Room room = null;
+    List<GridSquare> grid;
+
+    [System.Serializable]
+    public class Params {
+        public float blockWidth = 32f;
+        public float blockHeight = 32f;
     }
 
+    [System.Serializable]
     public class Room
     {
-        public List<Room> connections = new List<Room> ();
+        public List<Connection> connections = new List<Connection>();
         public bool connected = false;
         public int x;
         public int y;
@@ -37,6 +39,28 @@ public class TowerGen : MonoBehaviour
         public int h;
         public bool deadEnd = false;
         public int toEnd = -1;
+    }
+
+    public enum ConnectionType {
+        LEFT_WALL,
+        FLOOR,
+        CEILING,
+        RIGHT_WALL,
+        PORTAL
+    }
+
+    [System.Serializable]
+    public class Connection {
+        public Room room;
+        public ConnectionType type;
+        public Vector2 possiblePlacement = Vector2.zero; // indicates non-existance
+        public Vector2 placement = Vector2.zero;
+    }
+
+    class GridSquare
+    {
+        public bool filled = false;
+        public Room room = null;
     }
 
     class RoomProbability
@@ -188,7 +212,7 @@ public class TowerGen : MonoBehaviour
 
         // connect all rooms to all neighbors
         foreach (Room r in rooms) {
-            r.connections = AdjacentRooms (r);
+            r.connections = AdjacentConnections (r);
         }
 
         // flood fill to ensure connected
@@ -208,7 +232,7 @@ public class TowerGen : MonoBehaviour
             if (r.connections.Count == 0)
                 continue;
 
-            Room o = r.connections [Random.Range (0, r.connections.Count)];
+            Room o = r.connections [Random.Range (0, r.connections.Count)].room;
             RemoveConnection (r, o);
 
             int numRooms = FloodFill ();
@@ -240,7 +264,7 @@ public class TowerGen : MonoBehaviour
                     potential.Shuffle ();
 
                     foreach (Room c in potential) {
-                        if (c != r.connections [0]) {
+                        if (c != r.connections [0].room) {
                             AddConnection (c, r);
                             numDeadEnds = DeadEnds ();
                             break;
@@ -256,29 +280,27 @@ public class TowerGen : MonoBehaviour
 
         sparseness = Sparseness ();
 
+        GetSquare(0, 0).room.connections.Add(new Connection {
+            placement = new Vector2(towerParams.blockHeight / 2f - 2f, towerParams.blockHeight / 2f + 2f),
+            possiblePlacement = Vector2.zero,
+            type = ConnectionType.LEFT_WALL,
+            room = null
+        });
+
         BuildRooms ();
     }
 
     void BuildRooms ()
     {
         foreach(Room r in rooms) {
-            /*GameObject go = new GameObject();
-            go.transform.localPosition = new Vector3(r.x * blockWidth, r.y * blockHeight, 0);
-            go.transform.parent = gameObject.transform;
-
-            go.name = "Room at (" + r.x + ", " + r.y + ")";
-
-            go.AddComponent<RoomGen>();
-            go.GetComponent<RoomGen>().room = r;
-
-            go.GetComponent<RoomGen>().Generate();*/
             GameObject room = Instantiate(roomGen) as GameObject;
-            room.transform.localPosition = new Vector3(r.x * blockWidth, r.y * blockHeight, 0);
             room.transform.parent = gameObject.transform;
+            room.transform.localPosition = new Vector3(r.x * towerParams.blockWidth, r.y * towerParams.blockHeight, 0);
             
             room.name = "Room at (" + r.x + ", " + r.y + ")";
 
             room.GetComponent<RoomGen>().room = r;
+            room.GetComponent<RoomGen>().towerParams = towerParams;
             room.GetComponent<RoomGen>().Generate();
         }
     }
@@ -316,12 +338,12 @@ public class TowerGen : MonoBehaviour
         r.deadEnd = true;
         r.toEnd = currentCount;
 
-        foreach (Room next in r.connections) {
-            if (next == prev) {
+        foreach (Connection next in r.connections) {
+            if (next.room == prev) {
                 continue;
             }
 
-            WalkDeadEnd (next, r, currentCount + 1);
+            WalkDeadEnd (next.room, r, currentCount + 1);
         }
     }
     
@@ -355,51 +377,96 @@ public class TowerGen : MonoBehaviour
         return c;
     }
 
+    // tower space
     public Vector2 SharedHorizontalEdge (Room lhs, Room rhs)
     {
-        float left = Mathf.Max (rhs.x * blockWidth, lhs.x * blockWidth) + gameObject.transform.position.x;
-        float right = Mathf.Min ((rhs.x + rhs.w) * blockWidth, (lhs.x + lhs.w) * blockWidth) + gameObject.transform.position.x;
+        float left = Mathf.Max(rhs.x * towerParams.blockWidth, lhs.x * towerParams.blockWidth);
+        float right = Mathf.Min((rhs.x + rhs.w) * towerParams.blockWidth, (lhs.x + lhs.w) * towerParams.blockWidth);
 
         return new Vector2 (left, right);
     }
 
+    // tower space
     public Vector2 SharedVerticalEdge (Room rhs, Room lhs)
     {
-        float bottom = Mathf.Max (rhs.y * blockHeight, lhs.y * blockHeight) + gameObject.transform.position.y;
-        float top = Mathf.Min ((rhs.y + rhs.h) * blockHeight, (lhs.y + lhs.h) * blockHeight) + gameObject.transform.position.y;
+        float bottom = Mathf.Max(rhs.y * towerParams.blockHeight, lhs.y * towerParams.blockHeight);
+        float top = Mathf.Min((rhs.y + rhs.h) * towerParams.blockHeight, (lhs.y + lhs.h) * towerParams.blockHeight);
 
         return new Vector2 (bottom, top);
     }
 
-    List<Room> AdjacentRooms (Room r)
-    {
-        HashSet<Room> adjacentRooms = new HashSet<Room> ();
+    List<Room> AdjacentRooms(Room r) {
+        HashSet<Room> adjacentRooms = new HashSet<Room>();
 
         for (int i = 0; i < r.w; ++i) {
             for (int j = 0; j < r.h; ++j) {
-                GridSquare left = GetSquare (i + r.x - 1, j + r.y);
+                GridSquare left = GetSquare(i + r.x - 1, j + r.y);
                 if (left != null && left.room != null && left.room != r) {
-                    adjacentRooms.Add (left.room);
+                    adjacentRooms.Add(left.room);
                 }
 
-                GridSquare right = GetSquare (i + r.x + 1, j + r.y);
+                GridSquare right = GetSquare(i + r.x + 1, j + r.y);
                 if (right != null && right.room != null && right.room != r) {
-                    adjacentRooms.Add (right.room);
+                    adjacentRooms.Add(right.room);
                 }
 
-                GridSquare up = GetSquare (i + r.x, j + r.y + 1);
+                GridSquare up = GetSquare(i + r.x, j + r.y + 1);
                 if (up != null && up.room != null && up.room != r) {
-                    adjacentRooms.Add (up.room);
+                    adjacentRooms.Add(up.room);
                 }
 
-                GridSquare down = GetSquare (i + r.x, j + r.y - 1);
+                GridSquare down = GetSquare(i + r.x, j + r.y - 1);
                 if (down != null && down.room != null && down.room != r) {
-                    adjacentRooms.Add (down.room);
+                    adjacentRooms.Add(down.room);
                 }
             }
         }
 
-        return new List<Room> (adjacentRooms);
+        return new List<Room>(adjacentRooms);
+    }
+
+    List<Connection> AdjacentConnections (Room r)
+    {
+        List<Connection> connections = new List<Connection>();
+
+        foreach (Room c in AdjacentRooms(r)) {
+            connections.Add(CreateConnection(r, c)); 
+        }
+
+        return connections;
+    }
+
+    Connection CreateConnection(Room from, Room to) {
+        Vector2 hEdge = SharedHorizontalEdge(from, to);
+        Vector2 vEdge = SharedVerticalEdge(from, to);
+
+        ConnectionType type = ConnectionType.PORTAL;
+        Vector2 possible = Vector2.zero;
+
+        if (hEdge.x == hEdge.y) {
+            // vertical connection
+
+            if (hEdge.x == from.x * towerParams.blockWidth) {
+                type = ConnectionType.LEFT_WALL;
+            } else {
+                type = ConnectionType.RIGHT_WALL;
+            }
+            possible = new Vector2(vEdge.x - from.y * towerParams.blockHeight, vEdge.y - from.y * towerParams.blockHeight);
+            
+        } else {
+            // horizontal connection
+
+            if (vEdge.x == from.y * towerParams.blockHeight) {
+                type = ConnectionType.FLOOR;
+            } else {
+                type = ConnectionType.CEILING;
+            }
+            possible = new Vector2(hEdge.x - from.x * towerParams.blockWidth, hEdge.y - from.x * towerParams.blockWidth);
+        }
+        
+        float midpoint = (possible.x + possible.y) / 2f;
+
+        return new Connection { type = type, room = to, possiblePlacement = possible, placement = new Vector2(midpoint - 2f, midpoint + 2f) };
     }
 
     void RemoveAllUnconnected ()
@@ -415,21 +482,22 @@ public class TowerGen : MonoBehaviour
 
     void AddConnection (Room lhs, Room rhs)
     {
-        lhs.connections.Add (rhs);
-        rhs.connections.Add (lhs);
+        lhs.connections.Add (CreateConnection(lhs, rhs));
+        rhs.connections.Add (CreateConnection(rhs, lhs));
     }
 
     void RemoveConnection (Room lhs, Room rhs)
     {
-        lhs.connections.Remove (rhs);
-        rhs.connections.Remove (lhs);
+        lhs.connections.RemoveAll (c => c.room == rhs);
+        rhs.connections.RemoveAll (c => c.room == lhs);
     }
 
     void RemoveRoom (Room room)
     {
         foreach (Room r in rooms) {
-            if (r.connections.Contains (room)) {
-                r.connections.Remove (room);
+            Connection c = r.connections.Find(conn => conn.room == room);
+            if (c != null) {
+                r.connections.Remove(c);
             }
         }
         for (int i = 0; i < towerWidth; ++i) {
@@ -459,9 +527,9 @@ public class TowerGen : MonoBehaviour
     {
         r.connected = true;
 
-        foreach (Room adj in r.connections) {
-            if (!adj.connected)
-                num = SetConnected (adj, num + 1);
+        foreach (Connection adj in r.connections) {
+            if (!adj.room.connected)
+                num = SetConnected (adj.room, num + 1);
         }
         return num;
     }

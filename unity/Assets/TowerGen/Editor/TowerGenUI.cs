@@ -49,10 +49,10 @@ public class TowerGenUI : Editor
 
         if (tower != null) {
             Vector3 bl = tower.transform.position;
-            Vector3 br = new Vector3 (bl.x + tower.towerWidth * tower.blockWidth, bl.y, bl.z);
-            Vector3 tl = new Vector3 (bl.x, bl.y + tower.towerHeight * tower.blockHeight, bl.z);
-            Vector3 tr = new Vector3 (bl.x + tower.towerWidth * tower.blockWidth, 
-                                     bl.y + tower.towerHeight * tower.blockHeight, bl.z);
+            Vector3 br = new Vector3(bl.x + tower.towerWidth * tower.towerParams.blockWidth, bl.y, bl.z);
+            Vector3 tl = new Vector3(bl.x, bl.y + tower.towerHeight * tower.towerParams.blockHeight, bl.z);
+            Vector3 tr = new Vector3(bl.x + tower.towerWidth * tower.towerParams.blockWidth,
+                                     bl.y + tower.towerHeight * tower.towerParams.blockHeight, bl.z);
 
             Handles.color = Color.white;
 
@@ -61,30 +61,50 @@ public class TowerGenUI : Editor
             Handles.DrawLine (tr, tl);
             Handles.DrawLine (tl, bl);
 
-            float connectionLen = tower.blockHeight / 4f;
+            float connectionLen = tower.towerParams.blockHeight / 4f;
             float z = tower.transform.position.z;
 
             foreach (TowerGen.Room lhs in tower.rooms) {
                 DrawRoomOverlay (tower, lhs);
 
                 HashSet<TowerGen.Room> processedRooms = new HashSet<TowerGen.Room> ();
-                foreach (TowerGen.Room rhs in lhs.connections) {
-                    if (processedRooms.Contains (rhs)) {
+                foreach (TowerGen.Connection conn in lhs.connections) {
+                    if (processedRooms.Contains (conn.room)) {
                         continue;
                     }
 
-                    Vector2 hEdge = tower.SharedHorizontalEdge (lhs, rhs);
-                    Vector2 vEdge = tower.SharedVerticalEdge (lhs, rhs);
+                    if(conn.type == TowerGen.ConnectionType.PORTAL) {
+                        continue;
+                    }
 
-                    float x = (hEdge.x + hEdge.y) / 2f;
-                    float y = (vEdge.x + vEdge.y) / 2f;
+                    float x, y;
 
                     Handles.color = Color.blue;
 
-                    if (Mathf.Approximately (hEdge.x, hEdge.y)) {
-                        Handles.DrawLine (new Vector3 (x - connectionLen, y, z), new Vector3 (x + connectionLen, y, z));
+                    if (conn.type == TowerGen.ConnectionType.LEFT_WALL || conn.type == TowerGen.ConnectionType.RIGHT_WALL) {
+                        x = lhs.x * tower.towerParams.blockWidth;
+
+                        if (conn.type == TowerGen.ConnectionType.RIGHT_WALL) {
+                            x += lhs.w * tower.towerParams.blockWidth;
+                        }
+
+                        y = tower.towerParams.blockHeight * lhs.y + (conn.placement.x + conn.placement.y) / 2f;
+
+                        Handles.DrawLine(
+                            tower.gameObject.transform.position + new Vector3(x - connectionLen, y, z),
+                            tower.gameObject.transform.position + new Vector3(x + connectionLen, y, z));
                     } else {
-                        Handles.DrawLine (new Vector3 (x, y - connectionLen, z), new Vector3 (x, y + connectionLen, z));
+                        y = lhs.y * tower.towerParams.blockHeight;
+
+                        if (conn.type == TowerGen.ConnectionType.CEILING) {
+                            y += lhs.h * tower.towerParams.blockHeight;
+                        }
+
+                        x = tower.towerParams.blockWidth * lhs.x + (conn.placement.x + conn.placement.y) / 2f;
+
+                        Handles.DrawLine(
+                            tower.gameObject.transform.position + new Vector3(x, y - connectionLen, z),
+                            tower.gameObject.transform.position + new Vector3(x, y + connectionLen, z));
                     }
                 }
                 processedRooms.Add (lhs);
@@ -96,20 +116,20 @@ public class TowerGenUI : Editor
     {
         Handles.color = Color.white;
 
-        Vector3 v1 = new Vector3 (t.gameObject.transform.position.x + r.x * t.blockWidth,
-                                 t.gameObject.transform.position.y + r.y * t.blockHeight,
+        Vector3 v1 = new Vector3(t.gameObject.transform.position.x + r.x * t.towerParams.blockWidth,
+                                 t.gameObject.transform.position.y + r.y * t.towerParams.blockHeight,
                                  t.gameObject.transform.position.z);
 
-        Vector3 v2 = new Vector3 (t.gameObject.transform.position.x + (r.x + r.w) * t.blockWidth,
-                                 t.gameObject.transform.position.y + r.y * t.blockHeight,
+        Vector3 v2 = new Vector3(t.gameObject.transform.position.x + (r.x + r.w) * t.towerParams.blockWidth,
+                                 t.gameObject.transform.position.y + r.y * t.towerParams.blockHeight,
                                  t.gameObject.transform.position.z);
 
-        Vector3 v3 = new Vector3 (t.gameObject.transform.position.x + (r.x + r.w) * t.blockWidth,
-                                 t.gameObject.transform.position.y + (r.y + r.h) * t.blockHeight,
+        Vector3 v3 = new Vector3(t.gameObject.transform.position.x + (r.x + r.w) * t.towerParams.blockWidth,
+                                 t.gameObject.transform.position.y + (r.y + r.h) * t.towerParams.blockHeight,
                                  t.gameObject.transform.position.z);
 
-        Vector3 v4 = new Vector3 (t.gameObject.transform.position.x + r.x * t.blockWidth,
-                                 t.gameObject.transform.position.y + (r.y + r.h) * t.blockHeight,
+        Vector3 v4 = new Vector3(t.gameObject.transform.position.x + r.x * t.towerParams.blockWidth,
+                                 t.gameObject.transform.position.y + (r.y + r.h) * t.towerParams.blockHeight,
                                  t.gameObject.transform.position.z);
 
         Color fillColor = faceColor;
