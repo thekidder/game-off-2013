@@ -4,12 +4,15 @@ using System.Collections;
 public class PlayerController : MonoBehaviour
 {
     public float jumpForce;
+    public float ladderForce;
     public float moveForce;
     public float maxVelocity;
     
     public Transform groundCheck;
+    public Transform ladderGrabber;
 
     private bool grounded;
+    private bool onLadder;
     private bool jump;
 
     // Use this for initialization
@@ -25,6 +28,8 @@ public class PlayerController : MonoBehaviour
         if (Input.GetButtonDown("Jump") && grounded) {
             jump = true;
         }
+
+        onLadder = Physics2D.OverlapPoint(ladderGrabber.transform.position, 1 << LayerMask.NameToLayer("Ladder")); 
     }
 
     void FixedUpdate ()
@@ -42,6 +47,12 @@ public class PlayerController : MonoBehaviour
         if (jump) {
             rigidbody2D.AddForce(Vector2.up * jumpForce);
             jump = false;
+        }
+
+        float v = Input.GetAxisRaw("Vertical");
+
+        if (v > 0f && onLadder) {
+            rigidbody2D.AddForce(v * ladderForce * Vector2.up);
         }
     }
 }

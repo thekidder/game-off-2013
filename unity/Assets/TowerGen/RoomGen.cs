@@ -7,6 +7,7 @@ public class RoomGen : MonoBehaviour {
 
     public GameObject wallPrefab;
     public GameObject floorPrefab;
+    public GameObject ladderPrefab;
 
     delegate void GeometryGenerator(Vector2 size, Vector2 pos, Color color);
 
@@ -46,21 +47,34 @@ public class RoomGen : MonoBehaviour {
             TowerGen.ConnectionType.FLOOR,
             new Vector2(0f, towerParams.blockHeight / 2f - 2f),
             GenerateFloor, Color.grey);
-        /*GenerateFloor(
-            new Vector2(room.w * towerParams.blockWidth, 1f), 
-            new Vector2(room.x * towerParams.blockWidth, room.y * towerParams.blockHeight));
 
-        GenerateWall(
-            new Vector2(1f, room.h * towerParams.blockWidth - 6f),
-            new Vector2(room.x * towerParams.blockWidth, room.y * towerParams.blockHeight + 6f));
-
-        GenerateWall(
-            new Vector2(1f, room.h * towerParams.blockWidth - 6f),
-            new Vector2((1 + room.x) * towerParams.blockWidth - 1, room.y * towerParams.blockHeight + 6f));
-
-        GenerateFloor(
-            new Vector2(room.w * towerParams.blockWidth, 1f),
-            new Vector2(room.x * towerParams.blockWidth, (1 + room.y) * towerParams.blockHeight - 1f));*/
+        foreach (TowerGen.Connection c in room.connections) {
+            if (c.type == TowerGen.ConnectionType.CEILING) {
+                GenerateLadder(
+                    new Vector2(4f, towerParams.blockHeight * room.h - towerParams.blockHeight / 2f + 1f),
+                    new Vector2(c.placement.x, towerParams.blockHeight / 2f - 1f),
+                    Color.yellow);
+            } else if (c.type == TowerGen.ConnectionType.FLOOR) {
+                GenerateLadder(
+                    new Vector2(4f, towerParams.blockHeight / 2f - 1f),
+                    new Vector2(c.placement.x, 0f),
+                    Color.yellow);
+            } else if (c.type == TowerGen.ConnectionType.LEFT_WALL) {
+                if (c.placement.x > towerParams.blockHeight / 2f - 2f) {
+                    GenerateLadder(
+                        new Vector2(4f, c.placement.y - towerParams.blockHeight / 2f + 1f),
+                        new Vector2(1f, towerParams.blockHeight / 2f - 1f),
+                        Color.yellow);
+                }
+            } else if (c.type == TowerGen.ConnectionType.RIGHT_WALL) {
+                if (c.placement.x > towerParams.blockHeight / 2f - 2f) {
+                    GenerateLadder(
+                        new Vector2(4f, c.placement.y - towerParams.blockHeight / 2f + 1f),
+                        new Vector2(towerParams.blockWidth * room.w - 5f, towerParams.blockHeight / 2f - 1f),
+                        Color.yellow);
+                }
+            }
+        }
     }
 
     void GenerateWallWithOpenings(TowerGen.ConnectionType type, Vector2 startPos, GeometryGenerator generator, Color color) {
@@ -99,6 +113,12 @@ public class RoomGen : MonoBehaviour {
         GameObject wall = Instantiate(wallPrefab) as GameObject;
         wall.GetComponent<SpriteRenderer>().color = color;
         SetTransform(wall, size, position);
+    }
+
+    void GenerateLadder(Vector2 size, Vector2 position, Color color) {
+        GameObject ladder = Instantiate(ladderPrefab) as GameObject;
+        ladder.GetComponent<SpriteRenderer>().color = color;
+        SetTransform(ladder, size, position);
     }
 
     void SetTransform(GameObject go, Vector2 size, Vector2 position) {
